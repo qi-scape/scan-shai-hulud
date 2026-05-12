@@ -22,6 +22,10 @@ info()    { echo -e "  ${CYAN}[INFO]${RESET}     $*"; }
 ok()      { echo -e "  ${GREEN}[OK]${RESET}       $*"; }
 section() { echo; echo -e "${BOLD}═══ $* ═══${RESET}"; }
 
+# ─── Self-awareness (so we don't flag our own IOC strings) ──────────────────
+SELF_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 # ─── Parse args ─────────────────────────────────────────────────────────────
 FULL_MODE=0
 SCAN_DIR="$(pwd)"
@@ -346,15 +350,17 @@ if [ -d "${HOME_DIR}/.config/systemd" ]; then
   done < <(grep -rl -E "$C2_REGEX" "${HOME_DIR}/.config/systemd" 2>/dev/null | head -10 || true)
 fi
 
-# If scanning a project dir (not $HOME), grep source files
+# If scanning a project dir (not $HOME), grep source files — skip our own repo
 if [ "$SCAN_DIR" != "$HOME_DIR" ]; then
   while IFS= read -r match; do
     [ -z "$match" ] && continue
+    real_match="$(cd "$(dirname "$match")" 2>/dev/null && pwd)/$(basename "$match")"
+    [[ "$real_match" == "$SELF_DIR"/* ]] && continue
     finding "C2 indicator: $match"
     found=1
   done < <(grep -rl --include='*.js' --include='*.mjs' --include='*.cjs' \
     --include='*.ts' --include='*.json' --include='*.yml' --include='*.yaml' \
-    --include='*.sh' --include='*.py' \
+    --include='*.sh' --include='*.py' --include='*.md' \
     -E "$C2_REGEX" "$SCAN_DIR" \
     --exclude-dir='.git' --exclude-dir='node_modules' \
     2>/dev/null | head -50 || true)
